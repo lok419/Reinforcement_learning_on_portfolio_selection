@@ -9,7 +9,7 @@ from keras import regularizers
 
 
 class ActorNetwork(object):
-    def __init__(self, sess, state_size, action_size, BATCH_SIZE, LEARNING_RATE):
+    def __init__(self, sess, state_size, action_size, BATCH_SIZE, LEARNING_RATE, ):
         self.sess = sess
         self.BATCH_SIZE = BATCH_SIZE
         self.state_size = state_size
@@ -18,6 +18,7 @@ class ActorNetwork(object):
         self.global_step = tf.Variable(0, trainable=False, name='global_step')
         self.LEARNING_RATE = tf.train.exponential_decay(LEARNING_RATE, self.global_step,
                                                         50000, 0.1, staircase=False)
+        self.transaction_factor = 0.0025
 
         # Sets the global TensorFlow session
         K.set_session(sess)
@@ -29,7 +30,7 @@ class ActorNetwork(object):
         self.future_price = tf.placeholder(tf.float32, [None, state_size[0]+1])
 
         # Reward function to be maximized
-        self.reward = self.reward_3()
+        self.reward = self.reward_1()
 
         # perform gradient ascending
         self.optimize = tf.train.AdamOptimizer(LEARNING_RATE).minimize(self.reward, global_step=self.global_step)
@@ -40,7 +41,6 @@ class ActorNetwork(object):
         print("Reward function 1 (Average logarithmic cumulated return)")
 
         # transaction cost
-        self.transaction_factor = 0.001
         self.transaction_cost = 1 - tf.reduce_sum(self.transaction_factor * tf.abs(self.model.output[:,:-1] - self.last_action), axis=1)
 
         return -tf.reduce_mean(tf.log(self.transaction_cost * tf.reduce_sum(self.model.output * self.future_price, axis=1)))
@@ -50,7 +50,6 @@ class ActorNetwork(object):
         print("Reward function 2 (Average Uniform Constant Rebalanced reward)")
 
         # transaction cost
-        self.transaction_factor = 0.001
         self.transaction_cost = 1 - tf.reduce_sum(self.transaction_factor * tf.abs(self.model.output[:,:-1] - self.last_action), axis=1)
 
         return -tf.reduce_mean(tf.log(self.transaction_cost * tf.reduce_sum(self.model.output * self.future_price, axis=1) /
@@ -61,7 +60,6 @@ class ActorNetwork(object):
         print("Reward function 3 (Sharpe ratio)")
 
         # transaction cost
-        self.transaction_factor = 0.001
         self.transaction_cost = 1 - tf.reduce_sum(self.transaction_factor * tf.abs(self.model.output[:,:-1] - self.last_action), axis=1)
 
         # Daily average portfolio return
@@ -72,6 +70,25 @@ class ActorNetwork(object):
 
         return -(tf.reduce_mean(self.average_return)-self.risk_free_rate) * \
                tf.sqrt(tf.to_float(tf.size(self.average_return))) / K.std(self.average_return)
+
+    def reward_4(self):
+        # Calmar ratio
+        print("Reward function 4 (Calmar ratio)")
+
+        # transaction cost
+        self.transaction_cost = 1 - tf.reduce_sum(self.transaction_factor * tf.abs(self.model.output[:,:-1] - self.last_action), axis=1)
+
+        # Daily average portfolio return
+        self.average_return = self.transaction_cost * tf.reduce_sum(self.model.output * self.future_price, axis=1)
+
+        # Cumulative return
+        self.cumulative_return = tf.cumprod(self.average_return)
+        self.rolling_max = tf.scan(lambda a,x: tf.maximum(a,x), self.cumulative_return)
+        self.drawdown = (self.rolling_max - self.cumulative_return) / self.rolling_max
+
+        return -(tf.reduce_prod(self.average_return) - 1) / tf.reduce_max(self.drawdown)
+
+
 
     def train(self, states, last_actions, future_prices, cash_bias, prediction):
         # train model in batch to optimize reward
@@ -156,7 +173,7 @@ class ActorNetwork(object):
         action = Activation('softmax')(F1)
 
         model = Model(inputs=[State, last_action, cash_bias, prediction], outputs=action)
-        return model, model.trainable_weights, State, last_action, cash_bias, prediction, F1
+        return model, model.trainable_weights, State, last_action, cash_bias, prediction, [vote,prediction,vote_p,F1]
 
     def CNN_Dense(self, state_size):
         print("Now we build network (CNN + Dense)")

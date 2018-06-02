@@ -8,14 +8,14 @@ from sys import exit
 import os
 import Data
 import random
-
+import pandas as pd
+import math
 
 def gpu_settings():
-    os.environ["CUDA_VISIBLE_DEVICES"] = '4' #use GPU with ID 4
+    os.environ["CUDA_VISIBLE_DEVICES"] = '1' #use GPU with ID 4
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     config.gpu_options.per_process_gpu_memory_fraction = 0.3
-
     sess = tf.Session(config=config)
     from keras import backend as K
     K.set_session(sess)
@@ -26,14 +26,19 @@ def load_weights(mode, actor, ep):
     print("Now loading the weight")
     try:
         if mode == "train" or mode == "valid":
+            # actor.model.load_weights("./model/CNN.h5")
+            # print("Loaded CNN.h5")
             actor.model.load_weights("./model/actormodel_{}_ep{}.h5".format("train", ep-1))
             print("Loaded actormodel_{}_ep{}.h5".format("train", ep-1))
         elif mode == "test":
+            # actor.model.load_weights("./model/CNN.h5")
+            # print("Loaded CNNe.h5")
             actor.model.load_weights("./model/actormodel_{}_ep{}.h5".format("valid", ep-1))
             print("Loaded actormodel_{}_ep{}.h5".format("valid", ep-1))
+
         else:
             raise Exception("Invalid mode")
-        print("Loaded weight successfully ({})".format(ep-1))
+        print("Loaded weight successfully")
     except:
         print("Cannot find the weight")
 
@@ -47,7 +52,7 @@ def save_weights_results(P, mode, actor, ep, performance):
         if mode == "valid":
             actor.model.save_weights("./model/actormodel_{}_ep{}.h5".format(mode, ep-1), overwrite=True)
             print("Saved actormodel_{}_ep{}.h5".format(mode, ep-1))
-        filename = 'Portfolio_{}_{}_{}_{}_{}_ep{}.pickle'.format(mode,P.start,P.end,'-'.join(P.tickers), performance, ep-1)
+        filename = 'Portfolio_{}_{}_{}_{}_{}.pickle'.format(mode,P.start,P.end,'-'.join(P.tickers), performance)
 
     with open("./result/{}".format(filename),"wb") as outfile:
         pickle.dump(P, outfile)
@@ -148,13 +153,15 @@ def experience_replay(actor, buff, BATCH_SIZE, mode,  state, step, future_price,
         #     actor.cash_bias: np.array([[cash_bias] for _ in range(current_batch_size)]),
         #     actor.prediction: predictions
         # })
-        # print(test[0])
+
 
         # Train only if the buffer filled with certain data
         if step > 10 :
             actor.train(states, last_actions, future_prices, np.array([[cash_bias] for _ in range(current_batch_size)]), predictions)
 
-
+def extract_prediction():
+    df = pd.read_csv('prediction.csv',index_col=False)
+    return df.values
 
 def Simulate(start, end, mode='train', ep_train=30, ep_start=0):
 
@@ -162,27 +169,27 @@ def Simulate(start, end, mode='train', ep_train=30, ep_start=0):
     #           "Information Technology", "Materials","Real Estate","Telecommunication Services","Utilities"]
 
     # group 1
-    # sector = "Information Technology"
-    # tickers = ['AAPL', 'AMAT', 'AMD', 'CSCO', 'EBAY', 'GLW', 'HPQ', 'IBM', 'INTC', 'KLAC', 'MSFT', 'MU', 'NVDA', 'QCOM', 'TXN']
+    sector = "Information Technology"
+    tickers = ['AAPL', 'AMAT', 'AMD', 'CSCO', 'EBAY', 'GLW', 'HPQ', 'IBM', 'INTC', 'KLAC', 'MSFT', 'MU', 'NVDA', 'QCOM', 'TXN']
 
     # group 2
     # sector = "Consumer Discretionary"
     # tickers = ['AZO', 'BBY', 'DHI', 'F', 'GPS', 'GRMN', 'HOG', 'JWN', 'MAT', 'MCD', 'NKE', 'SBUX', 'TJX', 'TWX', 'YUM']
     #
     # group 3
-    sector = "Industrials"
-    tickers = ['BA', 'CAT', 'CTAS', 'EMR', 'FDX', 'GD', 'GE', 'LLL', 'LUV', 'MAS', 'MMM', 'NOC', 'RSG', 'UNP', 'WM']
-
+    # sector = "Industrials"
+    # tickers = ['BA', 'CAT', 'CTAS', 'EMR', 'FDX', 'GD', 'GE', 'LLL', 'LUV', 'MAS', 'MMM', 'NOC', 'RSG', 'UNP', 'WM']
 
     train_mode = 2
     BUFFER_SIZE = 200
     BATCH_SIZE = 10
     sample_bias = 1.05                                        # probability weighting of [sample_bias ** i for i in range(1,buffer_size-batch_size)]
-    cash_bias = -9999
+    cash_bias = 0
+    dependent_factor = 0
     if mode == "train":
-        LRA = 9e-5                                            # Learning rate for Actor (training)
+        LRA = 2e-5                                            # Learning rate for Actor (training)
     else:
-        LRA = 1e-5                                            # Learning rate for Actor (testing)
+        LRA = 9e-5                                            # Learning rate for Actor (validating or testing)
     train_rolling_steps = 1
     test_rolling_steps = 0
     window_size = 20                                          # window size per input
@@ -220,13 +227,12 @@ def Simulate(start, end, mode='train', ep_train=30, ep_start=0):
 
         # construct states
         state = prepare_states(P, window_size)
+        predictions = extract_prediction()
 
         cumulated_return = 1
 
         # iterate the defined period
         for step in range(len(state)-2):
-
-            # print(state[step])
 
             # extract the last action
             if step == 0:
@@ -234,18 +240,14 @@ def Simulate(start, end, mode='train', ep_train=30, ep_start=0):
             else:
                 last_action = np.array(P.portfolio_weights[-1][:state_dim[0]])
 
-            # prediction of tomorrow price
-            prediction = np.array([1 for _ in range(state_dim[0])])
-
+            prediction = np.power(predictions[step], dependent_factor)
 
             # generate action, single batch = batch only conisists one element
             action = actor.model.predict([state[step].reshape([1, state_dim[2], state_dim[1], state_dim[0]]),
                                           last_action.reshape(1, state_dim[0]), np.array([[cash_bias]]), prediction.reshape(1, state_dim[0])])
 
-
             # generate daily return
             day_return, future_price = P.calculate_return(action[0], last_action, step)
-
 
             # extract historical data to re-train the model at each time step
             experience_replay(actor, buff, BATCH_SIZE, mode,  state, step, future_price, last_action, cash_bias, prediction,
@@ -258,7 +260,6 @@ def Simulate(start, end, mode='train', ep_train=30, ep_start=0):
                                                                                         P.df_normalized.index[P.start_index+step+1].strftime('%Y-%m-%d'),
                                                                                         cumulated_return, day_return))
             print(action[0])
-
 
         # No trading at last day, clear the portfolio and set return to 1
         P.portfolio_weights.append(np.array([0 for _ in range(tickers_num)] + [1]))
@@ -280,12 +281,9 @@ def Simulate(start, end, mode='train', ep_train=30, ep_start=0):
         if mode == 'valid':
             total_step = 0
 
-
         print("")
 
-
     # save_epsoide_performance(mode, start, end, epsiode_reward)
-
 
     print("Finish")
     print("")
@@ -293,25 +291,24 @@ def Simulate(start, end, mode='train', ep_train=30, ep_start=0):
     return epsiode_reward
 
 def train(ep_start=0, ep_end=30):
-    Simulate('2010-01-04', '2015-12-31', mode="train", ep_train=ep_end-ep_start, ep_start=ep_start)
+    Simulate('2008-01-04', '2014-12-31', mode="train", ep_train=ep_end-ep_start, ep_start=ep_start)
 
 def valid(ep_start = -1, ep_end = -1):
     if ep_end == -1:
-        Simulate('2016-01-04', '2017-12-31', mode="valid", ep_train=1 , ep_start=ep_start)
-
+        Simulate('2015-01-02', '2015-12-31', mode="valid", ep_train=1 , ep_start=ep_start)
     # validate performance of each episode
     else:
-        print(Simulate('2016-01-04', '2017-12-31', mode="valid", ep_train=ep_end-ep_start, ep_start=ep_start+1))
+        print(Simulate('2015-01-02', '2015-12-31', mode="valid", ep_train=ep_end-ep_start, ep_start=ep_start+1))
 
 def test(ep_start=30):
     Simulate('2016-01-04', '2017-12-31', mode="test",  ep_train=1 ,  ep_start=ep_start)
 
 
 if __name__ == "__main__":
-    # train period: '2010-01-04' to '2015-12-31'
+    # train period: '2008-01-04' to '2014-12-31'
     # valid period: '2015-01-02' to '2015-12-31'
     # test period:  '2016-01-04' to '2017-12-31'
 
-    # train(ep_start=303, ep_end=400)
-    valid(ep_start=0, ep_end=400)
-    # test(ep_start=40)
+    train(ep_start=0, ep_end=200)
+    valid(ep_start=0, ep_end=200)
+    # test(ep_start=0)

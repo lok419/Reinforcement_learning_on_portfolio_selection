@@ -56,7 +56,8 @@ def copyall(ip='147.8.182.2', username='lok419',password='12345678',port=50888):
     for path, dirs, files in os.walk('.'):
         for f in files:
             if path not in ['.\.idea','./.idea','.\__pycache__', './__pycache__',
-                            '.\data\stock','./data/stock','.\data','./data']:
+                            '.\data\stock','./data/stock','.\data','./data',
+                            './test','.\\test']:
                 local = (path+'/'+f).replace('\\','/')
                 sftp.put(local,local)
                 print('copied',local)
@@ -180,20 +181,7 @@ if __name__ == "__main__":
     # local path: C:\Users\Cheung\PycharmProjects\DDPG\
     # server path: home\lok419\
 
-    # filename = 'actormodel_train_ep173.h5'
-    # get(local = './model/{}'.format(filename), server = './model/{}'.format(filename))
-
-    copy(local = './DPG.py', server = './DPG.py')
-    # copy(local = './Portfolio.py', server = './Portfolio.py')
-    # removeall()
-    # copyall()
-
-    # remove_data()
-    # copy_data()
-
-    # getall('./result','./result')
-    # getall('./model','./model')
-    # connect()
+    copy(local = 'Stock_prediction.py', server = 'Stock_prediction.py')
 
 
 

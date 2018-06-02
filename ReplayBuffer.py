@@ -45,22 +45,3 @@ class ReplayBuffer(object):
         self.buffer = list()
         self.num_experiences = 0
 
-# if __name__  == '__main__':
-#     import matplotlib.pyplot as plt
-#     a_1 = np.array([1**i for i in range(1,190+1)]) / sum(np.array([1**i for i in range(1,190+1)]))
-#     a_5 = np.array([1.02**i for i in range(1,190+1)]) / sum(np.array([1.02**i for i in range(1,200-10+1)]))
-#     a_2 = np.array([1.05**i for i in range(1,190+1)]) / sum(np.array([1.05**i for i in range(1,190+1)]))
-#     a_3 = np.array([1.1**i for i in range(1,190+1)]) / sum(np.array([1.1**i for i in range(1,190+1)]))
-#     a_4 = np.array([1.15**i for i in range(1,190+1)]) / sum(np.array([1.15**i for i in range(1,190+1)]))
-#     t = np.array([i for i in range(1,190+1)])
-#
-#     plt.title('Probability Distribution (Buffer size = 200, Batch size = 10)')
-#     plt.xlabel('i-th mini-batch')
-#     plt.plot(t,a_1)
-#     plt.plot(t,a_5)
-#     plt.plot(t,a_2)
-#     plt.plot(t,a_3)
-#     # plt.plot(t,a_4)
-#     plt.legend(['s = 1','s = 1.02','s = 1.05','s = 1.1','s = 1.15'])
-#     plt.show()
-

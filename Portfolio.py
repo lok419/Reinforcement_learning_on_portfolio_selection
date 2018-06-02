@@ -25,7 +25,7 @@ class Portfolio(object):
         self.consistent = True
 
         # fundamental indicator
-        self.df_close = self.extract_data(self.tickers, self.start, self.end, label='Adj. Close').fillna(method='ffill')
+        self.df_close = self.extract_data(self.tickers, self.start, self.end, label='Adj. Close')
         self.df_high = self.extract_data(self.tickers, self.start, self.end, label='Adj. High').fillna(method='ffill')
         self.df_low = self.extract_data(self.tickers, self.start, self.end, label='Adj. Low').fillna(method='ffill')
         self.df_open = self.extract_data(self.tickers, self.start, self.end, label='Adj. Open').fillna(method='ffill')
@@ -49,7 +49,7 @@ class Portfolio(object):
         self.portfolio_return = list([1])
         self.portfolio_UCRP = list([1])
         self.portfolio_UBHP = list([1])
-        self.transaction_factor = 0.001
+        self.transaction_factor = 0.0025
 
         print('Created Portfolio: {}'.format(tickers))
         print('Number of assets: {}'.format(self.tickers_num))
@@ -136,37 +136,6 @@ class Portfolio(object):
             self.portfolio_UBHP.append(day_return)
             weight *= self.df_normalized.iloc[j]
             weight = weight / sum(weight)
-
-if __name__ == "__main__":
-    # with open("sp500tickers_2000-01-03_2013-12-31.pickle",'rb') as file:
-    #     tickers = random.sample(pickle.load(file),10)
-
-    tickers = ['BA', 'CAT', 'CTAS', 'EMR', 'FDX', 'GD', 'GE', 'LLL', 'LUV', 'MAS', 'MMM', 'NOC', 'RSG', 'UNP', 'WM']
-
-    # construct a portfolio within defined period
-    P = Portfolio(tickers, '2010-01-04', '2015-12-31', mode="train")
-    if not P.consistent:
-        exit(0)
-
-
-    state = []
-    df = np.array([P.df_close.values, P.df_open.values, P.df_high.values, P.df_low.values,
-                   P.df_volume.values, P.df_roc.values, P.df_macd.values, P.df_ma5.values,
-                   P.df_ma10.values, P.df_ema20.values, P.df_sr20.values], dtype='float')
-    print(df)
-
-    # if 1-1-2013 is the first day of trading, last 60 days (not include today) is the input for first day
-    for j in range( P.start_index-1 , len(df[0])):
-        temp = np.copy(df[:, j-20+1:j+1 , :])
-
-        # to normalize the data
-        # latest adjusted close price within sliding window
-        # price_base = np.copy(temp[0,-1,:])
-        for feature in [0,1,2,3,4,7,8,9]:
-            for k in range(P.tickers_num):
-                temp[feature,:,k] /= temp[feature,-1,k]
-        state.append(temp)
-    print(state[10])
 
 
 

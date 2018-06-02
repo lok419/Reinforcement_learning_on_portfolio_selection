@@ -1,29 +1,30 @@
-import pandas as pd
-from universal import tools
 from universal import algos
-from datetime import datetime
 from Portfolio import Portfolio
-import random
-import pickle
 import logging
 import numpy as np
-# we would like to see algos progress
+
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 import matplotlib.pyplot as plt
-import Performance
 
 # It produces benchmarking strategy
+# group 1
+sector = "Information Technology"
+tickers = ['AAPL', 'AMAT', 'AMD', 'CSCO', 'EBAY', 'GLW', 'HPQ', 'IBM', 'INTC', 'KLAC', 'MSFT', 'MU', 'NVDA', 'QCOM', 'TXN']
 
-with open("ticker/sp500tickers_All.pickle",'rb') as file:
-    tickers = random.sample(pickle.load(file),5)
+# # group 2
+# sector = "Consumer Discretionary"
+# tickers = ['AZO', 'BBY', 'DHI', 'F', 'GPS', 'GRMN', 'HOG', 'JWN', 'MAT', 'MCD', 'NKE', 'SBUX', 'TJX', 'TWX', 'YUM']
+#
+# group 3
+# sector = "Industrials"
+# tickers = ['BA', 'CAT', 'CTAS', 'EMR', 'FDX', 'GD', 'GE', 'LLL', 'LUV', 'MAS', 'MMM', 'NOC', 'RSG', 'UNP', 'WM']
 
-
-P = Portfolio(tickers, '2013-01-02', '2013-12-31', mode='train')
+P = Portfolio(tickers, '2016-01-04', '2016-12-31', mode='train')
 date = P.df_close.index[P.start_index:]
 
 RMR = algos.RMR()
 RMR_return = RMR.run(P.df_close.iloc[P.start_index:])
-RMR_return.plot(weights=False, assets=False, ucrp=True, logy=False)
+RMR_return.plot(weights=True, assets=False, ucrp=True, logy=False)
 
 OLMAR = algos.OLMAR()
 OLMAR_return = OLMAR.run(P.df_close.iloc[P.start_index:])
@@ -36,6 +37,5 @@ PAMR_return.plot(weights=False, assets=False, ucrp=True, logy=False)
 Anticor = algos.Anticor()
 Anticor_return = Anticor.run(P.df_close.iloc[P.start_index:])
 Anticor_return.plot(weights=False, assets=False, ucrp=True, logy=False)
-
 
 plt.show()

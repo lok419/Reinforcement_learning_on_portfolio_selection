@@ -3,8 +3,10 @@ import pickle
 import requests
 import os
 import pandas
+import numpy as np
 import random
 import datetime
+from sklearn.preprocessing import MinMaxScaler
 from pandas.tseries.offsets import BDay
 try:
     import quandl
@@ -14,7 +16,6 @@ except ImportError:
 # GICS sector
 # sector = ["Consumer Discretionary", "Consumer Staples", "Energy", "Financials", "Health Care", "Industrials",
 #           "Information Technology", "Materials","Real Estate","Telecommunication Services","Utilities"]
-
 
 def sp500_tickers(sector = "All"):
 
@@ -37,7 +38,6 @@ def sp500_tickers(sector = "All"):
             with open("ticker/sp500tickers_{}.pickle".format(sector),"wb") as file:
                 pickle.dump(tickers,file)
     return tickers
-
 
 def download_data(symbol):
     if not os.path.exists('./data/stock/{}.csv'.format(symbol)):
@@ -65,14 +65,14 @@ def download_tickers(tickers):
     for ticker in tickers:
         download_data(ticker)
 
-# download stocks from sp500
 def download_sp500():
+    # download stocks from sp500
     tickers = sp500_tickers("All")
     for ticker in tickers:
         download_data(ticker)
 
-# generate a list of stocks which is available within a defined period
 def generate_list(sector, start, end):
+    # generate a list of stocks which is available within a defined period
     with open("ticker/sp500tickers_{}.pickle".format(sector),'rb') as file:
         tickers = pickle.load(file)
     available_stock = []
@@ -93,6 +93,29 @@ def generate_list(sector, start, end):
     with open("ticker/sp500tickers_{}_{}_{}.pickle".format(sector, start, end),"wb") as file:
         pickle.dump(available_stock, file)
 
+def generate_test_file(tickers, start, end):
+    start = (datetime.datetime.strptime(start, '%Y-%m-%d') - BDay(200))
+    end = datetime.datetime.strptime( end, "%Y-%m-%d")
+    test_data = []
+
+    for ticker in tickers:
+        temp = pandas.read_csv('./data/stock/{}.csv'.format(ticker), header=0, parse_dates=True, index_col=0).loc[start:end]
+        scaler = MinMaxScaler(feature_range=(0,1))
+        temp['Scaled_adj_close'] = scaler.fit_transform(temp[['Adj. Close']])
+        temp['Scaled_volume'] = scaler.fit_transform(temp[['Volume']])
+        test_data.append(temp[['Open','High','Low','Close','Adj. Close','Volume','Scaled_adj_close','Scaled_volume']])
+    print(test_data[0])
+
+    for i in range(len(test_data[0])):
+        temp = pandas.DataFrame(columns=['Open','High','Low','Close','Adj. Close','Volume','Scaled_adj_close','Scaled_volume'])
+        for ii, ticker in enumerate(tickers):
+            temp.loc[ii] = test_data[ii].iloc[i]
+        temp.to_csv('./test/{}.csv'.format(test_data[0].index[i].strftime('%Y-%m-%d')))
+        print('wrote',test_data[0].index[i].strftime('%Y-%m-%d'))
+
+
+
+
 
 if __name__ == '__main__':
 
@@ -107,28 +130,7 @@ if __name__ == '__main__':
     # # group 3
     # sector = "Industrials"
     # tickers = ['BA', 'CAT', 'CTAS', 'EMR', 'FDX', 'GD', 'GE', 'LLL', 'LUV', 'MAS', 'MMM', 'NOC', 'RSG', 'UNP', 'WM']
-
-    generate_list("Industrials",'2010-01-04', '2015-12-31')
-
-    with open("ticker/sp500tickers_Industrials_2010-01-04_2015-12-31.pickle","rb") as file:
-        tickers = pickle.load(file)
-        print(len(tickers))
-
-    with open("ticker/sp500tickers_Industrials.pickle","rb") as file:
-        tickers = pickle.load(file)
-        print(len(tickers))
-
-
-    # # test the tickers
-    # tickers = sp500_tickers("Industrials")
-    # for i in ['AZO', 'BBY', 'F', 'GPS', 'GRMN', 'HOG', 'JWN', 'MAT', 'MCD', 'NKE', 'SBUX', 'DHI', 'TJX', 'TWX', 'YUM']:
-    #     if i in tickers:
-    #         print("True")
-    #     else:
-    #         print("False")
-    #
-    # tickers = ['AZO', 'BBY', 'DHI', 'F', 'GPS', 'GRMN', 'HOG', 'JWN', 'MAT', 'MCD', 'NKE', 'SBUX', 'TJX', 'TWX', 'YUM']
-    # print(sorted(tickers))
+    pass
 
 
 

@@ -1,0 +1,10 @@
+BUFFER_SIZE = 200
+    BATCH_SIZE = 15
+    sample_bias = 1.05                                        # probability weighting of [sample_bias ** i for i in range(1,buffer_size-batch_size)]
+    cash_bias = 1.5
+    if mode == "train":
+        LRA = 2e-5                                            # Learning rate for Actor (training)
+    else:
+        LRA = 3e-5                                            # Learning rate for Actor (testing)
+    train_rolling_steps = 1
+    test_rolling_steps = 5

@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+
 # price should be in form of dataframe
 
 # Moving Average Convergence / Divergence
